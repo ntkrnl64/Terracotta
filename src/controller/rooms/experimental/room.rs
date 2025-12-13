@@ -137,7 +137,7 @@ fn from_value(value: u128) -> (String, String, String) {
     (code, network_name, network_secret)
 }
 
-pub fn start_host(room: Room, port: u16, player: Option<String>, capture: AppStateCapture, public_servers: PublicServers) {
+pub fn start_host(room: Room, port: u16, player: Option<String>, capture: AppStateCapture, public_servers: PublicServers, skip_mc_check: bool) {
     let scaffolding = *SCAFFOLDING_PORT;
 
     let mut args = compute_arguments(&room, public_servers);
@@ -173,7 +173,7 @@ pub fn start_host(room: Room, port: u16, player: Option<String>, capture: AppSta
         loop {
             thread::sleep(Duration::from_secs(5));
 
-            if legacy::check_mc_conn(port) {
+            if skip_mc_check || legacy::check_mc_conn(port) {
                 counter = 0;
             } else {
                 counter += 1;

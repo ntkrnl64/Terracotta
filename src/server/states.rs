@@ -16,9 +16,9 @@ fn set_state_ide() -> Status {
     Status::Ok
 }
 
-#[get("/scanning?<room>&<player>")]
-fn set_state_scanning(room: Option<String>, player: Option<String>) -> Status {
-    controller::set_scanning(room, player);
+#[get("/scanning?<room>&<player>&<port>")]
+fn set_state_scanning(room: Option<String>, player: Option<String>, port: Option<u16>) -> Status {
+    controller::set_scanning(room, player, port);
     Status::Ok
 }
 

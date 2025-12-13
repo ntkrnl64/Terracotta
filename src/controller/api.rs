@@ -91,17 +91,39 @@ pub fn set_waiting() {
     state.set(AppState::Waiting);
 }
 
-pub fn set_scanning(room: Option<String>, player: Option<String>) {
-    let capture = {
-        let state = AppState::acquire();
-        if !matches!(state.as_ref(), AppState::Waiting) {
-            return;
-        }
+pub fn set_scanning(room: Option<String>, player: Option<String>, port: Option<u16>) {
+    let state = AppState::acquire();
+    if !matches!(state.as_ref(), AppState::Waiting) {
+        return;
+    }
 
-        state.set(AppState::HostScanning {
-            scanner: MinecraftScanner::create(|m| m != MOTD),
-        })
-    };
+    // If the user provided an explicit port, start immediately mapping that port
+    if let Some(port) = port {
+        let capture = state.set(AppState::HostStarting { room: room.clone().and_then(|r| Room::from(&r)).unwrap_or_else(Room::create), port });
+        logging!("Core", "Starting host for specified port {}.", port);
+
+        thread::spawn(move || {
+            let room = room
+                .and_then(|room| Room::from(&room))
+                .unwrap_or_else(Room::create);
+
+            let (sender, receiver) = mpsc::channel();
+            let room2 = room.clone();
+            thread::spawn(move || {
+                // EasyTier Uptime is undergoing DDOS attack, so it's crucial to perform a prefetch logic.
+                let _ = sender.send(fetch_public_nodes(&room2));
+            });
+
+            experimental::start_host(room, port, player, capture, receiver.recv().unwrap(), true)
+        });
+
+        return;
+    }
+
+    // Otherwise fall back to LAN scanning for Minecraft servers
+    let capture = state.set(AppState::HostScanning {
+        scanner: MinecraftScanner::create(|m| m != MOTD),
+    });
     logging!("Core", "Setting to state SCANNING.");
 
     thread::spawn(move || {
@@ -131,7 +153,7 @@ pub fn set_scanning(room: Option<String>, player: Option<String>) {
             }
         };
 
-        experimental::start_host(room, port, player, capture, receiver.recv().unwrap())
+        experimental::start_host(room, port, player, capture, receiver.recv().unwrap(), false)
     });
 }
 
