@@ -287,6 +287,8 @@ pub fn start_guest(room: Room, player: Option<String>, capture: AppStateCapture)
 
             *difficulty = easytier::calc_conn_difficulty(local_nat, server_nat);
             logging!("RoomExperiment", "Current NAT status: {:?} -> {:?}, difficulty = {:?}", local_nat, server_nat, difficulty);
+            state.increase_shared();
+
             break 'local_port (local_port, *server_address);
         }
 
@@ -370,7 +372,10 @@ pub fn start_guest(room: Room, player: Option<String>, capture: AppStateCapture)
 
         // To maximum compatibility, try to request the identical port.
         // If failed, use a dynamic free port instead.
-        let local_port = PortRequest::request_specific(port).unwrap_or_else(|| PortRequest::Minecraft.request());
+        let local_port = PortRequest::request_specific(port).unwrap_or_else(|e| {
+            logging!("RoomExperiment", "Unable to request shadow port {} on client: {:?}. Mods requiring UDP socket like SimpleVoiceChat may go wrong.", port, e);
+            PortRequest::Minecraft.request()
+        });
 
         if !easytier.add_port_forward(&{
             let locals = [
